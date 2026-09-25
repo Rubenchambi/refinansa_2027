@@ -142,11 +142,7 @@ class AsignacionController extends Controller
 
     /**
      * 3. MOTOR DE MAPEO Y TRANSFORMACIÓN DINÁMICA DE LA MATRIZ
-     * Mapea hacia los 82 campos oficiales y aplica reglas del SQL Server.
-     */
-/**
-     * 3. MOTOR DE MAPEO Y TRANSFORMACIÓN DINÁMICA DE LA MATRIZ
-     * Mapea hacia los 82 campos oficiales y aplica reglas del SQL Server con deduplicación en memoria.
+     * Mapea hacia los 82 campos oficiales, soporta columnas del Excel o valores por defecto.
      */
     public function procesarYGenerarMatriz(Request $request)
     {
@@ -202,11 +198,23 @@ class AsignacionController extends Controller
                         $capitalBruto = $colCapital ? ($json[$colCapital] ?? 0) : 0;
                         $capitalDeuda = floatval(str_replace([',', 'S/.', '$', ' '], '', $capitalBruto));
 
-                        // 6. Generación del IDCLIENTE Compuesto (DNI + '-' + CUENTA/OPERACION)
+                        // 6. Generación del IDCLIENTE Compuesto
                         $llaveCuenta = !empty($cuenta) ? $cuenta : (!empty($operacion) ? $operacion : 'GENERICO');
                         $idcliente = (!empty($dni) && !empty($llaveCuenta)) ? ($dni . '-' . $llaveCuenta) : ((!empty($dni)) ? $dni . '-GENERICO' : 'SIN_ID_' . uniqid());
 
-                        // 7. Cálculo Automático de Rangos e Indicador ALTOS
+                        // 7. Resolución Flexible de CARTERA (Soporta Columna Excel O Texto Literal Libre)
+                        $colCarteraMapeada = $mapeo['cartera'] ?? null;
+                        $carteraFinal = $loteCartera; // Fallback por defecto
+
+                        if (!empty($colCarteraMapeada)) {
+                            if (array_key_exists($colCarteraMapeada, $json)) {
+                                $carteraFinal = trim((string)$json[$colCarteraMapeada]);
+                            } else {
+                                $carteraFinal = trim((string)$colCarteraMapeada);
+                            }
+                        }
+
+                        // 8. Cálculo Automático de Rangos e Indicador ALTOS
                         $rangoDeuda = $this->calcularRangoMonto($capitalDeuda);
                         $altos = ($capitalDeuda > 5000) ? 'ALTO' : '-';
 
@@ -220,7 +228,20 @@ class AsignacionController extends Controller
                             : 0.00;
                         $rangoCampSuper = ($montoCampSuper > 0) ? $this->calcularRangoMonto($montoCampSuper) : '-';
 
-                        // 8. ESTRUCTURA COMPLETA
+                        $colMonedaMapeada = $mapeo['moneda'] ?? null;
+                        $monedaRaw = null;
+
+                        if (!empty($colMonedaMapeada)) {
+                            if (array_key_exists($colMonedaMapeada, $json)) {
+                                $monedaRaw = $json[$colMonedaMapeada]; // Si viene de una columna del Excel
+                            } else {
+                                $monedaRaw = $colMonedaMapeada; // Si escribiste un texto fijo (Ej: 'USD' o 'PEN')
+                            }
+                        }
+
+                        $monedaFinal = $this->normalizarMoneda($monedaRaw);
+
+                        // 9. ESTRUCTURA BASE
                         $filaMatriz = [
                             'idcliente' => $idcliente,
                             'cuenta_cod_credito' => $cuenta,
@@ -229,13 +250,13 @@ class AsignacionController extends Controller
                             'unico' => 1,
                             'monto_unificado' => $capitalDeuda,
                             'nombre_cliente' => $nombre,
-                            'cartera' => $loteCartera,
+                            'cartera' => $carteraFinal,
                             'sub_cartera' => '-',
                             'region' => 'LIMA',
                             'linea_negocio' => '-',
                             'año_credito_castigo' => '-',
                             'mes' => str_pad($mesAsignacion, 2, '0', STR_PAD_LEFT),
-                            'moneda' => 'SOLES',
+                            'moneda' => $monedaFinal,
                             'capital_deuda' => $capitalDeuda,
                             'rango_deuda' => $rangoDeuda,
                             'total_saldo_vencido' => $capitalDeuda,
@@ -258,15 +279,21 @@ class AsignacionController extends Controller
                             'updated_at' => now(),
                         ];
 
-                        // Mapeo Dinámico
-                        foreach ($mapeo as $campoOficial => $columnaBanco) {
-                            if (!empty($campoOficial) && !empty($columnaBanco) && !in_array($campoOficial, ['idcliente', 'rango_deuda', 'altos', 'rango_campaña_canc', 'rango_campaña_super'])) {
-                                $valorJson = trim((string)($json[$columnaBanco] ?? ''));
+                        // 10. Mapeo Dinámico General (Evalúa si es Columna o Texto Fijo Manual)
+                        foreach ($mapeo as $campoOficial => $columnaOBancoTexto) {
+                            if (!empty($campoOficial) && !empty($columnaOBancoTexto) && !in_array($campoOficial, ['idcliente', 'rango_deuda', 'altos', 'rango_campaña_canc', 'rango_campaña_super', 'cartera','moneda'])) {
                                 
-                                if (str_contains($campoOficial, 'monto') || str_contains($campoOficial, 'saldo') || str_contains($campoOficial, 'pagos') || str_contains($campoOficial, 'mto_')) {
-                                    $filaMatriz[$campoOficial] = floatval(str_replace([',', 'S/.', '$', ' '], '', $valorJson));
+                                if (array_key_exists($columnaOBancoTexto, $json)) {
+                                    $valorRaw = trim((string)($json[$columnaOBancoTexto] ?? ''));
+                                    
+                                    if (str_contains($campoOficial, 'monto') || str_contains($campoOficial, 'saldo') || str_contains($campoOficial, 'pagos') || str_contains($campoOficial, 'mto_')) {
+                                        $filaMatriz[$campoOficial] = floatval(str_replace([',', 'S/.', '$', ' '], '', $valorRaw));
+                                    } else {
+                                        $filaMatriz[$campoOficial] = $valorRaw;
+                                    }
                                 } else {
-                                    $filaMatriz[$campoOficial] = $valorJson;
+                                    // Si no existe como columna en el Excel, se asigna como VALOR TEXTO POR DEFECTO
+                                    $filaMatriz[$campoOficial] = trim((string)$columnaOBancoTexto);
                                 }
                             }
                         }
@@ -275,26 +302,22 @@ class AsignacionController extends Controller
                     }
 
                     if (!empty($filasMatriz)) {
-                        // -----------------------------------------------------------------------------
-                        // FIX: DEDUPLICACIÓN EN MEMORIA ANTES DEL UPSERT
-                        // Previene el error: "la orden ON CONFLICT DO UPDATE no puede afectar una fila por segunda vez"
-                        // -----------------------------------------------------------------------------
+                        // Deduplicación en memoria antes del upsert
                         $uniqueInChunk = [];
                         foreach ($filasMatriz as $row) {
                             $key = $row['idcliente'] . '_' . $row['mes_asignacion'] . '_' . $row['año_asignacion'];
-                            $uniqueInChunk[$key] = $row; // Sobrescribe si viene repetido en el mismo bloque
+                            $uniqueInChunk[$key] = $row;
                         }
                         $filasLimpias = array_values($uniqueInChunk);
 
                         $sampleRow = reset($filasLimpias);
                         $columnasActualizables = array_keys($sampleRow);
                         
-                        // Excluimos las claves únicas y created_at del UPDATE
                         $columnasActualizables = array_diff($columnasActualizables, ['idcliente', 'mes_asignacion', 'año_asignacion', 'created_at']);
 
                         DB::table('matriz_general')->upsert(
                             $filasLimpias,
-                            ['idcliente', 'mes_asignacion', 'año_asignacion'], // Restricción uk_cliente_periodo
+                            ['idcliente', 'mes_asignacion', 'año_asignacion'],
                             array_values($columnasActualizables)
                         );
                         
@@ -316,6 +339,7 @@ class AsignacionController extends Controller
             ], 500);
         }
     }
+
     /**
      * Helper privado para rangos de deuda / campaña (Lógica idéntica a SQL Server CASE WHEN)
      */
@@ -383,14 +407,25 @@ class AsignacionController extends Controller
                 $json = json_decode($reg->datos_fila, true);
                 $filaMapeada = [];
 
-                foreach ($mapeo as $campoOficial => $columnaBanco) {
-                    $valorCrudo = $columnaBanco ? ($json[$columnaBanco] ?? '') : '';
-                    
-                    if (str_contains($campoOficial, 'capital') || str_contains($campoOficial, 'deuda') || str_contains($campoOficial, 'monto')) {
-                        $valorCrudo = is_numeric($valorCrudo) ? number_format(floatval($valorCrudo), 2) : $valorCrudo;
+                foreach ($mapeo as $campoOficial => $columnaOBancoTexto) {
+                    if (empty($columnaOBancoTexto)) {
+                        $valorFinal = '';
+                    } elseif (array_key_exists($columnaOBancoTexto, $json)) {
+                        $valorFinal = $json[$columnaOBancoTexto] ?? '';
+                    } else {
+                        // Si no existe la columna en la fila, se muestra el texto literal fijado
+                        $valorFinal = $columnaOBancoTexto;
                     }
 
-                    $filaMapeada[$campoOficial] = $valorCrudo;
+                    if ($campoOficial === 'moneda') {
+                        $valorFinal = $this->normalizarMoneda($valorFinal);
+                    }
+
+                    if (str_contains($campoOficial, 'capital') || str_contains($campoOficial, 'deuda') || str_contains($campoOficial, 'monto')) {
+                        $valorFinal = is_numeric($valorFinal) ? number_format(floatval($valorFinal), 2) : $valorFinal;
+                    }
+
+                    $filaMapeada[$campoOficial] = $valorFinal;
                 }
 
                 $filaMapeada['periodo'] = $periodo;
@@ -432,7 +467,7 @@ class AsignacionController extends Controller
             );
 
             return response()->json(['message' => '¡Plantilla de mapeo guardada con éxito!'], 200);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json(['message' => 'Error al guardar la plantilla: ' . $e->getMessage()], 500);
         }
     }
@@ -449,16 +484,26 @@ class AsignacionController extends Controller
                 ->get();
 
             return response()->json($plantillas, 200);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json(['message' => 'Error al listar plantillas: ' . $e->getMessage()], 500);
         }
     }
 
     /**
-     * 8. CARGAR PLANTILLA DESDE UN ARCHIVO EXCEL/CSV
+     * 8. ELIMINAR PLANTILLA DE MAPEO
      */
-/**
-     * 8. CARGAR PLANTILLA DESDE UN ARCHIVO EXCEL/CSV
+    public function eliminarPlantillaMapeo($id)
+    {
+        try {
+            DB::table('plantillas_mapeo')->where('id', $id)->delete();
+            return response()->json(['message' => 'Plantilla eliminada con éxito.'], 200);
+        } catch (Exception $e) {
+            return response()->json(['message' => 'Error al eliminar la plantilla: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * 9. CARGAR PLANTILLA DESDE UN ARCHIVO EXCEL/CSV
      */
     public function cargarPlantillaExcel(Request $request)
     {
@@ -468,7 +513,7 @@ class AsignacionController extends Controller
 
         try {
             $file = $request->file('archivo_plantilla');
-            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file->getRealPath());
+            $spreadsheet = IOFactory::load($file->getRealPath());
             $sheet = $spreadsheet->getActiveSheet();
             $rows = $sheet->toArray(null, true, true, true);
 
@@ -494,8 +539,34 @@ class AsignacionController extends Controller
                 'mapeo' => $mapeoExtraido
             ], 200);
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json(['message' => 'Error al leer el archivo Excel: ' . $e->getMessage()], 500);
         }
+    }
+
+    private function normalizarMoneda($valorRaw)
+    {
+        if (is_null($valorRaw) || trim((string)$valorRaw) === '') {
+            return 'PEN'; // Por defecto PEN si no viene la columna en el Excel
+        }
+
+        $val = strtoupper(trim((string)$valorRaw));
+
+        // 1. Detección y Homologación a Soles (PEN)
+        if (in_array($val, ['0', 'S/.', 'S/', 'SOLES', 'SOL', 'PEN', 'NUEVOS SOLES', 'NUEVO SOL'])) {
+            return 'PEN';
+        }
+
+        // 2. Detección y Homologación a Dólares (USD)
+        if (in_array($val, ['100', '101', '$', 'USD', 'DOLARES', 'DOLAR', 'US$'])) {
+            return 'USD';
+        }
+
+        // 3. Detección y Homologación a Euros (EUR)
+        if (in_array($val, ['EUR', 'EURO', 'EUROS', '€'])) {
+            return 'EUR';
+        }
+
+        return $val; // Retorna el valor directo si ya viene en formato estándar
     }
 }

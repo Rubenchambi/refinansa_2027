@@ -55,10 +55,9 @@
     <!-- Paso 2: Interfaz de Equivalencias con GESTIÓN DE PLANTILLAS -->
     <div v-if="columnasBanco.length > 0" class="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-6">
       
-<!-- BARRA DE PLANTILLAS (Fondo Gris + Controles Blancos a la Derecha) -->
+      <!-- BARRA DE PLANTILLAS -->
       <div class="bg-slate-100 border border-slate-200 p-4 rounded-xl flex flex-wrap items-center justify-between gap-4 shadow-xs">
         
-        <!-- Lado Izquierdo: Título e Ícono -->
         <div class="flex items-center gap-3 shrink-0">
           <BookmarkCheck class="w-5 h-5 text-blue-600 shrink-0" />
           <div>
@@ -67,10 +66,8 @@
           </div>
         </div>
 
-        <!-- Lado Derecho: Selectores y Botones alineados (Blancos) -->
         <div class="flex flex-wrap items-center gap-2.5 ml-auto w-full md:w-auto justify-end">
           
-          <!-- Input Oculto para Subir Excel -->
           <input 
             type="file" 
             ref="fileInputPlantilla" 
@@ -79,34 +76,46 @@
             class="hidden" 
           />
 
-          <!-- Selector de Plantillas Guardadas (Blanco) -->
-          <select 
-            v-model="plantillaSeleccionada" 
-            @change="aplicarPlantilla"
-            class="text-xs px-3 py-3 rounded-xl bg-white border border-slate-300 text-slate-800 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10 cursor-pointer font-medium shadow-2xs min-w-[210px]"
-          >
-            <option value="">-- Cargar Plantilla BD --</option>
-            <option v-for="p in listaPlantillas" :key="p.id" :value="p.id">
-              {{ p.nombre_plantilla }}
-            </option>
-          </select>
+          <!-- Selector de Plantillas BD con Opción de Eliminar Integrada -->
+          <div class="flex items-center gap-1">
+            <select 
+              v-model="plantillaSeleccionada" 
+              @change="aplicarPlantilla"
+              class="text-xs px-3 py-2.5 rounded-xl bg-white border border-slate-300 text-slate-800 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10 cursor-pointer font-medium shadow-2xs min-w-[210px]"
+            >
+              <option value="">-- Cargar Plantilla BD --</option>
+              <option v-for="p in listaPlantillas" :key="p.id" :value="p.id">
+                {{ p.nombre_plantilla }}
+              </option>
+            </select>
 
-          <!-- Botón: Subir Plantilla Excel (Blanco con Borde) -->
+            <button 
+              v-if="plantillaSeleccionada"
+              @click="eliminarPlantillaSeleccionada"
+              type="button"
+              class="p-2.5 bg-white hover:bg-red-50 text-red-500 border border-red-200 rounded-xl transition-all shadow-2xs cursor-pointer"
+              title="Eliminar esta plantilla de la BD"
+            >
+              <Trash2 class="w-4 h-4" />
+            </button>
+          </div>
+
+          <!-- Botón Subir Excel -->
           <button 
             @click="$refs.fileInputPlantilla.click()" 
             type="button" 
-            class="px-3.5 py-3 bg-white hover:bg-slate-50 text-slate-500 border text-xs font-bold rounded-xl shadow-2xs flex items-center gap-1.5 cursor-pointer transition-all shrink-0"
+            class="px-3.5 py-2.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-bold rounded-xl shadow-2xs flex items-center gap-1.5 cursor-pointer transition-all shrink-0"
           >
-            <FileSpreadsheet class="w-3.5 h-3.5 text-slate-400" /> Subir Excel
+            <FileSpreadsheet class="w-3.5 h-3.5 text-slate-500" /> Subir Excel
           </button>
 
-          <!-- Botón: Guardar Mapeo Actual (Blanco con Borde) -->
+          <!-- Botón Guardar Plantilla -->
           <button 
             @click="guardarNuevaPlantilla" 
             type="button" 
-            class="px-3.5 py-3 bg-white hover:bg-slate-50 text-slate-500 border text-xs font-bold rounded-xl shadow-2xs flex items-center gap-1.5 cursor-pointer transition-all shrink-0"
+            class="px-3.5 py-2.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-bold rounded-xl shadow-2xs flex items-center gap-1.5 cursor-pointer transition-all shrink-0"
           >
-            <Save class="w-3.5 h-3.5 text-slate-400" /> Guardar Plantilla
+            <Save class="w-3.5 h-3.5 text-slate-500" /> Guardar Plantilla
           </button>
 
         </div>
@@ -118,92 +127,160 @@
             <span class="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] flex items-center justify-center font-black">2</span>
             Configuración de Equivalencias
           </h2>
-          <p class="text-xs text-slate-400 mt-1">Escribe dentro del selector para buscar rápidamente las columnas de la entidad bancaria.</p>
+          <p class="text-xs text-slate-400 mt-1">Escribe dentro del selector para buscar rápidamente las columnas de la entidad bancaria o escribe un texto fijo.</p>
         </div>
-        <div class="flex items-center gap-3">
-          <span class="text-xs bg-blue-50 text-blue-700 font-bold px-3 py-1 rounded-full border border-blue-200">
+        <div>
+          <span class="text-xs bg-blue-50 text-blue-700 font-bold px-3 py-1.5 rounded-full border border-blue-200">
             {{ columnasBanco.length }} columnas origen detectadas
           </span>
-          <button 
-            @click="agregarFilaSelectores" 
-            type="button" 
-            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-sm flex items-center gap-1.5 cursor-pointer transition-all"
-          >
-            <Plus class="w-4 h-4" /> Añadir Selector Adicional
-          </button>
         </div>
       </div>
 
-      <!-- Grid de 3 Columnas con Fondo Continuo de Color -->
+      <!-- Grid de 3 Columnas con Fondos Continuos Originales (Sky, Emerald, Amber) -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
         
         <!-- BLOQUE 1: Identificación y Contactabilidad (Azul Sky) -->
-        <div class="border-2 border-sky-200 bg-sky-50/70 rounded-2xl p-4 space-y-4 shadow-xs">
-          <div class="text-xs font-bold text-sky-800 uppercase tracking-wider text-center pb-2 border-b border-sky-200">
-            Identificación y Contacto
-          </div>
-          
-          <div v-for="(campo, idx) in columnasCol1" :key="'col1-'+idx" class="bg-white border border-sky-200 p-3 rounded-xl space-y-2 shadow-2xs">
-            <div class="flex items-center justify-between gap-2">
-              <input type="text" v-model="campo.nombreOficial" placeholder="Nombre Campo Matriz" class="text-xs font-bold text-sky-900 bg-sky-50/50 px-2 py-1 rounded-lg border border-sky-200 outline-none w-full" />
-              <button @click="removerSelector(1, idx)" class="text-slate-400 hover:text-red-500 cursor-pointer p-1 shrink-0" title="Eliminar fila">
-                <Trash2 class="w-3.5 h-3.5" />
-              </button>
+        <div class="border-2 border-sky-200 bg-sky-50/70 rounded-2xl p-4 space-y-4 shadow-xs flex flex-col justify-between">
+          <div class="space-y-4">
+            <div class="text-xs font-bold text-sky-800 uppercase tracking-wider text-center pb-2 border-b border-sky-200">
+              Identificación y Contacto
             </div>
             
-            <v-select 
-              v-model="campo.columnaBanco" 
-              :options="columnasBanco" 
-              placeholder="Buscar columna origen..."
-              class="custom-v-select text-xs"
-            />
+            <div v-for="(campo, idx) in columnasCol1" :key="'col1-'+idx" class="bg-white border border-sky-200 p-3 rounded-xl space-y-2 shadow-2xs">
+              <div class="flex items-center justify-between gap-2">
+                <input type="text" v-model="campo.nombreOficial" placeholder="Nombre Campo Matriz" class="text-xs font-bold text-sky-900 bg-sky-50/50 px-2 py-1 rounded-lg border border-sky-200 outline-none w-full" />
+                
+                <!-- Íconos de Verificación / Advertencia -->
+                <div class="flex items-center gap-1 shrink-0">
+                  <CheckCircle2 
+                    v-if="esColumnaValida(campo.columnaBanco)" 
+                    class="w-4 h-4 text-emerald-500" 
+                    title="Coincidencia exacta con el lote importado" 
+                  />
+                  <AlertCircle 
+                    v-else-if="campo.columnaBanco" 
+                    class="w-4 h-4 text-amber-500 cursor-help" 
+                    title="Esta columna no existe en el lote actual (se tomará como valor fijo o debes corregirla)" 
+                  />
+                  <button @click="removerSelector(1, idx)" class="text-slate-400 hover:text-red-500 cursor-pointer p-1" title="Eliminar fila">
+                    <Trash2 class="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+              
+              <v-select 
+                v-model="campo.columnaBanco" 
+                :options="columnasBanco" 
+                :taggable="true"
+                placeholder="Buscar columna o escribir valor fijo..."
+                class="custom-v-select text-xs"
+              />
+            </div>
           </div>
+
+          <button 
+            @click="agregarSelectorAColumna(1)" 
+            type="button" 
+            class="w-full py-2 bg-white hover:bg-sky-100 text-sky-700 border border-dashed border-sky-300 text-xs font-bold rounded-xl shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer transition-all mt-3"
+          >
+            <Plus class="w-3.5 h-3.5" /> Añadir Selector
+          </button>
         </div>
 
         <!-- BLOQUE 2: Contratos, Cuentas y Operaciones (Verde Emerald) -->
-        <div class="border-2 border-emerald-200 bg-emerald-50/70 rounded-2xl p-4 space-y-4 shadow-xs">
-          <div class="text-xs font-bold text-emerald-800 uppercase tracking-wider text-center pb-2 border-b border-emerald-200">
-            Cuentas, Contratos y Operaciones
-          </div>
-          
-          <div v-for="(campo, idx) in columnasCol2" :key="'col2-'+idx" class="bg-white border border-emerald-200 p-3 rounded-xl space-y-2 shadow-2xs">
-            <div class="flex items-center justify-between gap-2">
-              <input type="text" v-model="campo.nombreOficial" placeholder="Nombre Campo Matriz" class="text-xs font-bold text-emerald-900 bg-emerald-50/50 px-2 py-1 rounded-lg border border-emerald-200 outline-none w-full" />
-              <button @click="removerSelector(2, idx)" class="text-slate-400 hover:text-red-500 cursor-pointer p-1 shrink-0" title="Eliminar fila">
-                <Trash2 class="w-3.5 h-3.5" />
-              </button>
+        <div class="border-2 border-emerald-200 bg-emerald-50/70 rounded-2xl p-4 space-y-4 shadow-xs flex flex-col justify-between">
+          <div class="space-y-4">
+            <div class="text-xs font-bold text-emerald-800 uppercase tracking-wider text-center pb-2 border-b border-emerald-200">
+              Cuentas, Contratos y Operaciones
             </div>
             
-            <v-select 
-              v-model="campo.columnaBanco" 
-              :options="columnasBanco" 
-              placeholder="Buscar columna origen..."
-              class="custom-v-select text-xs"
-            />
+            <div v-for="(campo, idx) in columnasCol2" :key="'col2-'+idx" class="bg-white border border-emerald-200 p-3 rounded-xl space-y-2 shadow-2xs">
+              <div class="flex items-center justify-between gap-2">
+                <input type="text" v-model="campo.nombreOficial" placeholder="Nombre Campo Matriz" class="text-xs font-bold text-emerald-900 bg-emerald-50/50 px-2 py-1 rounded-lg border border-emerald-200 outline-none w-full" />
+                
+                <!-- Íconos de Verificación / Advertencia -->
+                <div class="flex items-center gap-1 shrink-0">
+                  <CheckCircle2 
+                    v-if="esColumnaValida(campo.columnaBanco)" 
+                    class="w-4 h-4 text-emerald-500" 
+                    title="Coincidencia exacta con el lote importado" 
+                  />
+                  <AlertCircle 
+                    v-else-if="campo.columnaBanco" 
+                    class="w-4 h-4 text-amber-500 cursor-help" 
+                    title="Esta columna no existe en el lote actual (se tomará como valor fijo o debes corregirla)" 
+                  />
+                  <button @click="removerSelector(2, idx)" class="text-slate-400 hover:text-red-500 cursor-pointer p-1" title="Eliminar fila">
+                    <Trash2 class="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+              
+              <v-select 
+                v-model="campo.columnaBanco" 
+                :options="columnasBanco" 
+                :taggable="true"
+                placeholder="Buscar columna o escribir valor fijo..."
+                class="custom-v-select text-xs"
+              />
+            </div>
           </div>
+
+          <button 
+            @click="agregarSelectorAColumna(2)" 
+            type="button" 
+            class="w-full py-2 bg-white hover:bg-emerald-100 text-emerald-700 border border-dashed border-emerald-300 text-xs font-bold rounded-xl shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer transition-all mt-3"
+          >
+            <Plus class="w-3.5 h-3.5" /> Añadir Selector
+          </button>
         </div>
 
         <!-- BLOQUE 3: Financiero, Deudas y Comodines (Ámbar) -->
-        <div class="border-2 border-amber-200 bg-amber-50/70 rounded-2xl p-4 space-y-4 shadow-xs">
-          <div class="text-xs font-bold text-amber-800 uppercase tracking-wider text-center pb-2 border-b border-amber-200">
-            Saldos, Montos y Comodines (P/Var)
-          </div>
-          
-          <div v-for="(campo, idx) in columnasCol3" :key="'col3-'+idx" class="bg-white border border-amber-200 p-3 rounded-xl space-y-2 shadow-2xs">
-            <div class="flex items-center justify-between gap-2">
-              <input type="text" v-model="campo.nombreOficial" placeholder="Nombre Campo Matriz" class="text-xs font-bold text-amber-900 bg-amber-50/50 px-2 py-1 rounded-lg border border-amber-200 outline-none w-full" />
-              <button @click="removerSelector(3, idx)" class="text-slate-400 hover:text-red-500 cursor-pointer p-1 shrink-0" title="Eliminar fila">
-                <Trash2 class="w-3.5 h-3.5" />
-              </button>
+        <div class="border-2 border-amber-200 bg-amber-50/70 rounded-2xl p-4 space-y-4 shadow-xs flex flex-col justify-between">
+          <div class="space-y-4">
+            <div class="text-xs font-bold text-amber-800 uppercase tracking-wider text-center pb-2 border-b border-amber-200">
+              Saldos, Montos y Comodines (P/Var)
             </div>
             
-            <v-select 
-              v-model="campo.columnaBanco" 
-              :options="columnasBanco" 
-              placeholder="Buscar columna origen..."
-              class="custom-v-select text-xs"
-            />
+            <div v-for="(campo, idx) in columnasCol3" :key="'col3-'+idx" class="bg-white border border-amber-200 p-3 rounded-xl space-y-2 shadow-2xs">
+              <div class="flex items-center justify-between gap-2">
+                <input type="text" v-model="campo.nombreOficial" placeholder="Nombre Campo Matriz" class="text-xs font-bold text-amber-900 bg-amber-50/50 px-2 py-1 rounded-lg border border-amber-200 outline-none w-full" />
+                
+                <!-- Íconos de Verificación / Advertencia -->
+                <div class="flex items-center gap-1 shrink-0">
+                  <CheckCircle2 
+                    v-if="esColumnaValida(campo.columnaBanco)" 
+                    class="w-4 h-4 text-emerald-500" 
+                    title="Coincidencia exacta con el lote importado" 
+                  />
+                  <AlertCircle 
+                    v-else-if="campo.columnaBanco" 
+                    class="w-4 h-4 text-amber-500 cursor-help" 
+                    title="Esta columna no existe en el lote actual (se tomará como valor fijo o debes corregirla)" 
+                  />
+                  <button @click="removerSelector(3, idx)" class="text-slate-400 hover:text-red-500 cursor-pointer p-1" title="Eliminar fila">
+                    <Trash2 class="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+              
+              <v-select 
+                v-model="campo.columnaBanco" 
+                :options="columnasBanco" 
+                :taggable="true"
+                placeholder="Buscar columna o escribir valor fijo..."
+                class="custom-v-select text-xs"
+              />
+            </div>
           </div>
+
+          <button 
+            @click="agregarSelectorAColumna(3)" 
+            type="button" 
+            class="w-full py-2 bg-white hover:bg-amber-100 text-amber-700 border border-dashed border-amber-300 text-xs font-bold rounded-xl shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer transition-all mt-3"
+          >
+            <Plus class="w-3.5 h-3.5" /> Añadir Selector
+          </button>
         </div>
 
       </div>
@@ -288,7 +365,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { Layers, ArrowRightLeft, Plus,FileSpreadsheet, Trash2, X, BookmarkCheck, Save } from 'lucide-vue-next';
+import { Layers, ArrowRightLeft, Plus, FileSpreadsheet, Trash2, X, BookmarkCheck, Save, CheckCircle2, AlertCircle } from 'lucide-vue-next';
 import api from '../api/axios';
 import Swal from 'sweetalert2';
 
@@ -318,7 +395,15 @@ const headersTable = computed(() => {
   }));
 });
 
-// Bloques con los campos oficializados de tu estructura SQL
+// Helper para determinar si el valor seleccionado existe como columna real en el lote
+const esColumnaValida = (valorSeleccionado) => {
+  if (!valorSeleccionado) return false;
+  return columnasBanco.value.some(
+    col => col.toLowerCase().trim() === valorSeleccionado.toLowerCase().trim()
+  );
+};
+
+// Estructura Base Inicial de 3 Columnas
 const columnasCol1 = ref([
   { nombreOficial: 'nro_documento', columnaBanco: '' },
   { nombreOficial: 'nombre_cliente', columnaBanco: '' },
@@ -344,10 +429,12 @@ const columnasCol3 = ref([
   { nombreOficial: 'var2', columnaBanco: '' }
 ]);
 
-const agregarFilaSelectores = () => {
-  columnasCol1.value.push({ nombreOficial: 'nuevo_campo_1', columnaBanco: '' });
-  columnasCol2.value.push({ nombreOficial: 'nuevo_campo_2', columnaBanco: '' });
-  columnasCol3.value.push({ nombreOficial: 'nuevo_campo_3', columnaBanco: '' });
+// Agregar un selector individual en la columna específica
+const agregarSelectorAColumna = (colNum) => {
+  const nuevoCard = { nombreOficial: `nuevo_campo_col${colNum}`, columnaBanco: '' };
+  if (colNum === 1) columnasCol1.value.push(nuevoCard);
+  if (colNum === 2) columnasCol2.value.push(nuevoCard);
+  if (colNum === 3) columnasCol3.value.push(nuevoCard);
 };
 
 const removerSelector = (colIndex, idx) => {
@@ -356,7 +443,7 @@ const removerSelector = (colIndex, idx) => {
   if (colIndex === 3) columnasCol3.value.splice(idx, 1);
 };
 
-// Cargar Lotes y Plantillas Iniciales
+// Cargar Plantillas desde el Backend
 const cargarPlantillas = async () => {
   try {
     const res = await api.get('/plantillas-mapeo');
@@ -376,82 +463,87 @@ onMounted(async () => {
   }
 });
 
-  const procesarExcelPlantilla = async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
+/**
+ * REPARTIDOR RECURSIVO: Distribuye cualquier diccionario {campo: valor} 
+ * equitativamente entre las 3 columnas sin saturar ninguna.
+ */
+const reconstruirYDistribuirColumnas = (mapeoObj) => {
+  columnasCol1.value = [];
+  columnasCol2.value = [];
+  columnasCol3.value = [];
 
-    const formData = new FormData();
-    formData.append('archivo_plantilla', file);
+  const entradas = Object.entries(mapeoObj);
+  
+  entradas.forEach(([campo, colBanco], index) => {
+    const cardData = {
+      nombreOficial: campo,
+      columnaBanco: colBanco || ''
+    };
 
-    Swal.fire({
-      title: 'Leyendo Plantilla Excel...',
-      text: 'Procesando equivalencias de columnas',
-      allowOutsideClick: false,
-      didOpen: () => { Swal.showLoading(); }
+    if (index % 3 === 0) {
+      columnasCol1.value.push(cardData);
+    } else if (index % 3 === 1) {
+      columnasCol2.value.push(cardData);
+    } else {
+      columnasCol3.value.push(cardData);
+    }
+  });
+};
+
+/**
+ * Procesar Plantilla subida desde Excel
+ */
+const procesarExcelPlantilla = async (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const formData = new FormData();
+  formData.append('archivo_plantilla', file);
+
+  Swal.fire({
+    title: 'Leyendo Plantilla Excel...',
+    text: 'Procesando equivalencias y distribuyendo campos',
+    allowOutsideClick: false,
+    didOpen: () => { Swal.showLoading(); }
+  });
+
+  try {
+    const res = await api.post('/cargar-plantilla-excel', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
     });
 
-    try {
-      const res = await api.post('/cargar-plantilla-excel', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+    const config = res.data.mapeo;
+    
+    // Homologar con las columnas reales del banco o dejar el texto literal
+    const mapeoHomologado = {};
+    Object.keys(config).forEach(campoKey => {
+      const valorExcel = config[campoKey];
+      const coincidencia = columnasBanco.value.find(
+        col => col.toLowerCase().trim() === valorExcel.toLowerCase().trim()
+      );
+      mapeoHomologado[campoKey] = coincidencia || valorExcel;
+    });
 
-      const config = res.data.mapeo; // Ejemplo: { "nro_documento": "dni", "cuenta_cod_credito": "Cuenta", ... }
+    reconstruirYDistribuirColumnas(mapeoHomologado);
 
-      let asignados = 0;
+    Swal.fire({
+      icon: 'success',
+      title: '¡Plantilla Excel Aplicada!',
+      text: `Se cargaron ${Object.keys(config).length} equivalencias repartidas balanceadamente.`,
+      timer: 2000,
+      showConfirmButton: false
+    });
 
-      // Función para buscar e inyectar el valor reactivo
-      const aplicarConfiguracion = (listaColumnas) => {
-        listaColumnas.forEach(item => {
-          const campo = item.nombreOficial.trim().toLowerCase();
-          
-          if (config[campo]) {
-            const valorExcel = config[campo];
-            
-            // Verificar si el valor existe exactamente en las columnas leídas del banco
-            const coincidencia = columnasBanco.value.find(
-              col => col.toLowerCase().trim() === valorExcel.toLowerCase().trim()
-            );
+  } catch (e) {
+    Swal.fire('Error', e.response?.data?.message || 'No se pudo leer la plantilla Excel.', 'error');
+  } finally {
+    event.target.value = '';
+  }
+};
 
-            // Asignar la coincidencia exacta del lote o el valor del Excel
-            item.columnaBanco = coincidencia || valorExcel;
-            asignados++;
-          }
-        });
-      };
-
-      aplicarConfiguracion(columnasCol1.value);
-      aplicarConfiguracion(columnasCol2.value);
-      aplicarConfiguracion(columnasCol3.value);
-
-      // Si la plantilla trae campos adicionales que no están visibles en los bloques, los agrega al bloque 3
-      Object.keys(config).forEach(campoKey => {
-        const existeEnVista = [...columnasCol1.value, ...columnasCol2.value, ...columnasCol3.value]
-          .some(col => col.nombreOficial.trim().toLowerCase() === campoKey);
-
-        if (!existeEnVista) {
-          columnasCol3.value.push({
-            nombreOficial: campoKey,
-            columnaBanco: config[campoKey]
-          });
-          asignados++;
-        }
-      });
-
-      Swal.fire({
-        icon: 'success',
-        title: '¡Plantilla Excel Aplicada!',
-        text: `Se asignaron correctamente ${asignados} columnas en los selectores.`,
-        timer: 2000,
-        showConfirmButton: false
-      });
-
-    } catch (e) {
-      Swal.fire('Error', e.response?.data?.message || 'No se pudo leer la plantilla Excel.', 'error');
-    } finally {
-      event.target.value = ''; // Resetear el input file para permitir subir el mismo archivo si se desea
-    }
-  };
-
+/**
+ * Cargar estructura de cabeceras desde el Lote
+ */
 const cargarCabeceras = async () => {
   if (!form.value.lote_cartera || !form.value.periodo) {
     Swal.fire('Atención', 'Selecciona un lote y escribe el periodo correspondiente.', 'warning');
@@ -465,7 +557,6 @@ const cargarCabeceras = async () => {
     const response = await api.post('/obtener-cabeceras', form.value);
     columnasBanco.value = response.data.columnas_banco;
     
-    // Auto-Mapeo Inteligente por nombres comunes
     autoMapearColumnas();
 
     Swal.fire({
@@ -482,7 +573,6 @@ const cargarCabeceras = async () => {
   }
 };
 
-// Lógica de Auto-Mapeo Inteligente
 const autoMapearColumnas = () => {
   const buscarCoincidencia = (nombreOficial) => {
     return columnasBanco.value.find(col => {
@@ -504,7 +594,9 @@ const autoMapearColumnas = () => {
   });
 };
 
-// Aplicar Plantilla Seleccionada
+/**
+ * Aplicar Plantilla seleccionada desde la BD
+ */
 const aplicarPlantilla = () => {
   if (!plantillaSeleccionada.value) return;
 
@@ -515,29 +607,53 @@ const aplicarPlantilla = () => {
     ? JSON.parse(plantilla.mapeo_config) 
     : plantilla.mapeo_config;
 
-  // Asignar los campos correspondientes
-  const aplicarAConfig = (lista) => {
-    lista.forEach(item => {
-      if (config[item.nombreOficial]) {
-        item.columnaBanco = config[item.nombreOficial];
-      }
-    });
-  };
-
-  aplicarAConfig(columnasCol1.value);
-  aplicarAConfig(columnasCol2.value);
-  aplicarAConfig(columnasCol3.value);
+  reconstruirYDistribuirColumnas(config);
 
   Swal.fire({
     icon: 'success',
     title: '¡Plantilla Aplicada!',
-    text: `Se aplicó el perfil "${plantilla.nombre_plantilla}".`,
+    text: `Se cargó el perfil "${plantilla.nombre_plantilla}".`,
     timer: 1500,
     showConfirmButton: false
   });
 };
 
-// Guardar Mapeo Actual como Plantilla
+/**
+ * Eliminar la plantilla seleccionada de la Base de Datos
+ */
+const eliminarPlantillaSeleccionada = async () => {
+  if (!plantillaSeleccionada.value) return;
+
+  const plantilla = listaPlantillas.value.find(p => p.id === plantillaSeleccionada.value);
+  if (!plantilla) return;
+
+  const confirmacion = await Swal.fire({
+    title: '¿Eliminar Plantilla?',
+    text: `¿Estás seguro de que deseas eliminar la plantilla "${plantilla.nombre_plantilla}"?`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#ef4444',
+    cancelButtonColor: '#64748b',
+    confirmButtonText: 'Sí, eliminar',
+    cancelButtonText: 'Cancelar'
+  });
+
+  if (confirmacion.isConfirmed) {
+    try {
+      await api.delete(`/plantillas-mapeo/${plantilla.id}`);
+      plantillaSeleccionada.value = '';
+      await cargarPlantillas();
+
+      Swal.fire('¡Eliminada!', 'La plantilla se eliminó de la base de datos.', 'success');
+    } catch (e) {
+      Swal.fire('Error', 'No se pudo eliminar la plantilla.', 'error');
+    }
+  }
+};
+
+/**
+ * Guardar el mapeo actual en la BD
+ */
 const guardarNuevaPlantilla = async () => {
   const mapeoActual = construirMapeoFinal();
 
@@ -585,7 +701,7 @@ const construirMapeoFinal = () => {
   return mapeoFinal;
 };
 
-// Previsualizar
+// Previsualización
 const solicitarVistaPrevia = async () => {
   const mapeoFinal = construirMapeoFinal();
 
@@ -618,7 +734,7 @@ const solicitarVistaPrevia = async () => {
   }
 };
 
-// Procesar Matriz
+// Procesamiento Final
 const ejecutarTransformacionFinal = async () => {
   const mapeoFinal = construirMapeoFinal();
   showModalPreview.value = false;
@@ -663,7 +779,7 @@ const ejecutarTransformacionFinal = async () => {
 :deep(.custom-v-select .vs__selected) {
   font-size: 11px;
   font-weight: 600;
-  color: #dce5ff;
+  color: #1e293b;
 }
 
 :deep(.matriz-preview-table) {

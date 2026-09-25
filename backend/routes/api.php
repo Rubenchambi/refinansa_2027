@@ -31,3 +31,4 @@ Route::post('/previsualizar-matriz', [AsignacionController::class, 'previsualiza
 Route::get('/plantillas-mapeo', [AsignacionController::class, 'listarPlantillasMapeo']);
 Route::post('/guardar-plantilla-mapeo', [AsignacionController::class, 'guardarPlantillaMapeo']);
 Route::post('/cargar-plantilla-excel', [AsignacionController::class, 'cargarPlantillaExcel']);
+Route::delete('/plantillas-mapeo/{id}', [AsignacionController::class, 'eliminarPlantillaMapeo']);
